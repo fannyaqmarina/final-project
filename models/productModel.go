@@ -5,10 +5,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type Admin struct {
+type Product struct {
 	gorm.Model
 	Uuid     uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()"`
-	Email    string    `gorm:"unique"`
-	Password string
-	Products []Product `gorm:"foreignKey:AdminID"`
+	Name     string
+	ImageUrl string
+	AdminID  uint
+	Variants []Variant `gorm:"foreignKey:ProductID"`
 }
