@@ -11,4 +11,5 @@ type Variant struct {
 	VariantName string
 	Quantity    int
 	ProductID   uint
+	Products    Product `gorm:"foreignKey:ProductID"`
 }
