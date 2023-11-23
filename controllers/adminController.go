@@ -42,13 +42,7 @@ func Signup(c *gin.Context) {
 
 	var getEmail = models.Admin{}
 
-	if err := initializers.DB.Model(&getEmail).Where("email = ?", body.Email).First(&getEmail).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Internal Server Error",
-			"message": err.Error(),
-		})
-		return
-	}
+	_ = initializers.DB.Model(&getEmail).Where("email = ?", body.Email).First(&getEmail)
 	if getEmail.Email != "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Bad Request",
