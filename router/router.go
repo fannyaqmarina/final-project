@@ -28,10 +28,13 @@ func RouterApp() *gin.Engine {
 
 			variantRouter.Use(middleware.Authentication())
 			variantRouter.POST("/", controllers.CreateVariant)
+			variantRouter.PUT("/:variantId", middleware.VariantAuthorization(), controllers.UpdateVariant)
+			variantRouter.DELETE("/:variantId", middleware.VariantAuthorization(), controllers.DeleteVariant)
 		}
 		productRouter.Use(middleware.Authentication())
 		productRouter.POST("/", controllers.CreateProduct)
 		productRouter.PUT("/:productId", middleware.ProductAuthorization(), controllers.UpdateProduct)
+		productRouter.DELETE("/:productId", middleware.ProductAuthorization(), controllers.DeleteProduct)
 	}
 
 	return router

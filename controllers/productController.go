@@ -6,6 +6,7 @@ import (
 	"final-assignment/models"
 	"final-assignment/models/request"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,11 @@ func CreateProduct(ctx *gin.Context) {
 		return
 	}
 
+	if productReq.Image == nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Image is Required"})
+		return
+	}
+
 	fileName := helpers.RemoveExtension(productReq.Image.Filename)
 
 	uploadResult, err := helpers.UploadFile(productReq.Image, fileName)
@@ -35,7 +41,7 @@ func CreateProduct(ctx *gin.Context) {
 	userData := ctx.MustGet("userData").(jwt5.MapClaims)
 
 	Product := models.Product{
-		Name:     productReq.Name,
+		Name:     strings.ToLower(productReq.Name),
 		ImageUrl: uploadResult,
 		AdminID:  uint(userData["id"].(float64)),
 	}
@@ -58,8 +64,37 @@ func CreateProduct(ctx *gin.Context) {
 func GetAllProduct(ctx *gin.Context) {
 	db := initializers.DB
 
+	search := ctx.Query("search")
+	page := ctx.DefaultQuery("page", "1")
+	limit := ctx.DefaultQuery("limit", "10")
+
 	var products []models.Product
-	if err := db.Preload("Admin").Preload("Variants").Find(&products).Error; err != nil {
+	query := db.Preload("Admin").Preload("Variants")
+
+	if search != "" {
+		query = query.Where("name LIKE ?", "%"+strings.ToLower(search)+"%")
+	}
+
+	offset, err := strconv.Atoi(limit)
+	limitInt, err := strconv.Atoi(limit)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid limit value",
+			"message": err.Error(),
+		})
+		return
+	}
+	pageNum, err := strconv.Atoi(page)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid page value",
+			"message": err.Error(),
+		})
+		return
+	}
+	offset = (pageNum - 1) * offset
+
+	if err := query.Offset(offset).Limit(limitInt).Find(&products).Error; err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Bad request",
 			"message": err.Error(),
@@ -150,4 +185,38 @@ func UpdateProduct(ctx *gin.Context) {
 		"message": "Success Updated",
 	})
 
+}
+
+func DeleteProduct(ctx *gin.Context) {
+	db := initializers.DB
+
+	Product := &models.Product{}
+
+	productId := ctx.Param("productId")
+
+	var getProduct models.Product
+	if err := db.Model(&getProduct).Preload("Variants").Where("uuid = ?", productId).First(&getProduct).Error; err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Bad request",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	for i := 0; i < len(getProduct.Variants); i++ {
+		if err := initializers.DB.Delete(&models.Variant{}, getProduct.Variants[i].ID).Error; err != nil {
+			ctx.JSON(500, gin.H{"error": "Failed to delete Variant"})
+			return
+		}
+	}
+
+	Product.ID = getProduct.ID
+	if err := initializers.DB.Delete(Product).Error; err != nil {
+		ctx.JSON(500, gin.H{"error": "Failed to delete Product"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Success Deleted Product",
+	})
 }

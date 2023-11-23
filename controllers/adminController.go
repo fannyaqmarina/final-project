@@ -1,26 +1,58 @@
 package controllers
 
 import (
+	"encoding/json"
 	"final-assignment/helpers"
 	"final-assignment/initializers"
 	"final-assignment/models"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func Signup(c *gin.Context) {
 	var body struct {
-		Name     string
-		Email    string
-		Password string
+		Name     string `json:"name" validate:"required"`
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=8"`
 	}
 
-	if c.Bind(&body) != nil {
+	err := json.NewDecoder(c.Request.Body).Decode(&body)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Bad request",
 			"message": "Failed to Read Body",
+		})
+		return
+	}
+
+	validate := validator.New()
+	err = validate.Struct(body)
+	if err != nil {
+		errors := err.(validator.ValidationErrors)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Bad request",
+			"message": fmt.Sprint("Validate Error : ", errors.Error()),
+		})
+		return
+	}
+
+	var getEmail = models.Admin{}
+
+	if err := initializers.DB.Model(&getEmail).Where("email = ?", body.Email).First(&getEmail).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Internal Server Error",
+			"message": err.Error(),
+		})
+		return
+	}
+	if getEmail.Email != "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Bad Request",
+			"message": "Email Already Taken",
 		})
 		return
 	}

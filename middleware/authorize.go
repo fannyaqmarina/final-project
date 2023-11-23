@@ -50,7 +50,7 @@ func VariantAuthorization() gin.HandlerFunc {
 		userID := uint(userData["id"].(float64))
 
 		var getVariant models.Variant
-		err := db.Preload("Products").Preload("Admin").Where("uuid = ?", variantId).First(&getVariant).Error
+		err := db.Preload("Products").Where("uuid = ?", variantId).First(&getVariant).Error
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 				"error":   err.Error(),
